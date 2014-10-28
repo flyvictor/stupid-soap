@@ -12,7 +12,7 @@ function escapeXmlChars(str, cdata) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#x27;')
-        .replace(/\//g, '&#x2F;')
+        // .replace(/\//g, '&#x2F;')
     ) : str;
 }
 
@@ -24,6 +24,9 @@ function _toXml(res, el, cdata) {
         Object.getOwnPropertyNames(el).map(function(name) {
           var attrs = el['$'+name],
               opt = el['$__'+name];
+
+          // console.log("attrs", attrs);
+          // console.log("opt", opt);
           if (name.substr(0,1) === '$') return '';
           return '<'+name+
             (attrs instanceof Object ?
@@ -45,21 +48,43 @@ function toXml(obj, opt) {
 module.exports = function (opt) {
   var xml, envelope;
 
+  var namespaces = '';
+
+  if (opt.namespaces) {
+    namespaces = opt.namespaces.reduce(function(total, item) {
+      total += item.key + '="' + item.value + '" ';
+      return total;
+    }, ' ');
+    namespaces = namespaces.trimRight();
+  }
+  else if (opt.xmlns) {
+    namespaces = ' xmlns="' + opt.xmlns + '"';
+  }
+  
+  // console.log(opt.headers);
+
+  if (opt.headers) {
+    opt.headers = '<soap:Header>' + toXml(opt.headers) + '</soap:Header>';
+  }
+
   xml = (opt.raw ?
       (opt.xml ||
         '<?xml version="1.0" encoding="utf-8"?>\n' +
         toXml(opt.params, { cdata:opt.cdata })
       ) :
-      '<?xml version="1.0" encoding="utf-8"?>\n' +
+      '<?xml version="1.0" encoding="ISO-8859-1"?>\n' +
       '<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"' +
       ' xmlns:xsd="http://www.w3.org/2001/XMLSchema"' +
-      ' xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">' +
+      ' xmlns:soap="http://www.w3.org/2003/05/soap-envelope">' 
+      + opt.headers +
       '<soap:Body>' +
-        '<'+opt.action+' xmlns="'+opt.xmlns+'">' +
+        '<'+opt.action + namespaces + '>' +
           (opt.xml || toXml(opt.params, { cdata:opt.cdata })) +
         '</'+opt.action+'>' +
       '</soap:Body></soap:Envelope>'
     );
+
+  // console.log(xml);
 
   envelope = {
     xml: xml,
